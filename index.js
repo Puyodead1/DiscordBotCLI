@@ -1,6 +1,7 @@
 const Discord = require("discord.js");
 const client = new Discord.Client();
 const createTypes = ["role", "channel", "invite"];
+const channelTypes = ["Text", "Voice"];
 
 let currentGuild = null;
 let currentChannel = null;
@@ -49,6 +50,95 @@ function login(token, callback) {
   });
 }
 
+function selectGuild() {
+  let menuBody = "Select a guild to manage:\n";
+  const guilds = [];
+
+  client.guilds.forEach(guild => {
+    guilds.push(guild);
+  });
+
+  guilds.filter(n => n);
+  for (guild of guilds) {
+    menuBody += `${guilds.indexOf(guild) + 1}. ${guild.name}\n`;
+  }
+
+  // print the menu
+  console.log(menuBody);
+
+  // TODO: Sanitize input
+  readline.question("Guild: ", ans => {
+    if (guilds[ans - 1]) {
+      currentGuild = guilds[ans - 1];
+      console.log(`Current Guild set to: ${currentGuild.name}`);
+      return main();
+    } else {
+      console.error("Invalid entry!");
+      return main();
+    }
+  });
+}
+
+function logout() {
+  client.destroy();
+  process.exit(0);
+}
+
+function createChannel() {
+  const channelObj = { type: "", topic: "", nsfw: "" };
+  readline.question("Channel Name: ", name => {
+    if (isText(name)) {
+      let menuBody = "\nValid Types:\n";
+      for (type of channelTypes) {
+        menuBody += `${channelTypes.indexOf(type) + 1}. ${type}\n`;
+      }
+      console.log(menuBody);
+
+      readline.question("Channel Type (Number): ", type => {
+        if (isText(type)) {
+          if (channelTypes.indexOf(type)) {
+            channelObj.type = channelTypes[type - 1].toLowerCase();
+            if (channelObj.type == "text") channelObj.name = name.toLowerCase();
+            else channelObj.name = name;
+
+            readline.question("Topic: ", topic => {
+              if (isText(topic)) {
+                channelObj.topic = topic;
+                currentGuild
+                  .createChannel(channelObj.name, {
+                    type: channelObj.type,
+                    topic: channelObj.topic
+                  })
+                  .then(v => {
+                    console.log(`Channel Created! ID: ${v.id}`);
+                    return main();
+                  });
+              } else {
+                console.error("Invalid input!");
+                return main();
+              }
+            });
+          } else {
+            console.error("Invalid type!");
+            return main();
+          }
+        } else {
+          console.error("Invalid input!");
+          return main();
+        }
+      });
+      return main();
+    } else {
+      console.error("Invalid input!");
+      return main();
+    }
+  });
+}
+
+function isText(text) {
+  if (text.trim()) return true;
+  else return false;
+}
 const clean = text => {
   if (typeof text === "string")
     return text
@@ -84,18 +174,7 @@ function main() {
           // they gave a guild id
         } else {
           // they didnt give a guild id so show a selection menu
-          let menuBody = "Select a guild to manage:\n";
-          const guilds = [];
-          client.guilds.forEach(guild => {
-            guilds.push(guild.name);
-          });
-          guilds.filter(n => n);
-          for (guild of guilds) {
-            menuBody += `${guilds.indexOf(guild) + 1}. ${guild}\n`;
-          }
-
-          // print the menu
-          console.log(menuBody);
+          selectGuild();
 
           // TODO: Get selection
           // TODO: set current guild
@@ -104,11 +183,15 @@ function main() {
         }
         break;
       case "createchannel":
-        if (checkArgsMinMax(args, 1, 3)) {
-          // TODO: Guild selection menu - number based
-          return main();
-        } else invalidArgsWithOpts(args, 1, 2);
-        break;
+        if (currentGuild) {
+          createChannel();
+        } else {
+          console.log(
+            "No guild set, please select a guild and rerun the command."
+          );
+          selectGuild();
+        }
+        return main();
       default:
         console.error("Invalid Command!");
         return main();
